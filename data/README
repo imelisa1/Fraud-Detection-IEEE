@@ -1,3 +1,9 @@
+# Veri
+
+Bu klasör projenin ham verisini içerir. **Dosyalar repoya eklenmemiştir**
+(bkz. `.gitignore`): boyutları büyüktür ve Kaggle yarışma kuralları verinin yeniden
+dağıtılmasına izin vermez. Verileri aşağıdaki adımlarla kendiniz indirebilirsiniz.
+
 ## Kaynak
 
 - **Yarışma:** [IEEE-CIS Fraud Detection](https://www.kaggle.com/c/ieee-fraud-detection/data) (Kaggle, 2019)
