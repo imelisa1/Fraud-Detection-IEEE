@@ -1,0 +1,77 @@
+## Kaynak
+
+- **Yarışma:** [IEEE-CIS Fraud Detection](https://www.kaggle.com/c/ieee-fraud-detection/data) (Kaggle, 2019)
+- **Sağlayıcı:** Vesta Corporation (ödeme işleme şirketi)
+- **İçerik:** Sağlayıcı tarafından anonimleştirilmiş, gerçek e-ticaret kart işlemleri
+
+## Projede kullanılan dosyalar
+
+| Dosya | Satır | Sütun | Açıklama |
+|---|---|---|---|
+| `train_transaction.csv` | ~590.540 | 394 | Her satır bir işlemdir: tutar, ürün, kart, adres, e-posta alan adı, türetilmiş özellikler ve `isFraud` etiketi |
+| `train_identity.csv` | ~144.233 | 41 | Cihaz ve ağ bilgileri (tarayıcı, işletim sistemi, cihaz tipi vb.) |
+
+İki tablo `TransactionID` ile bağlanır. İşlemlerin yalnızca yaklaşık %24'ünün kimlik
+(identity) kaydı vardır, bu yüzden tablolar işlem tablosu esas alınarak **left join**
+ile birleştirilmelidir.
+
+> Kaggle'daki `test_*.csv` dosyaları kullanılmamıştır: `isFraud` etiketleri olmadığı
+> için burada model değerlendirmesi yapılamaz. Doğrulama, eğitim verisinin zamana
+> dayalı bölünmesiyle yapılmıştır.
+
+## Hedef değişken
+
+- `isFraud`: 1 = hileli (fraud) işlem, 0 = meşru işlem
+- Fraud oranı yaklaşık **%3,5**'tir; yani veri belirgin şekilde dengesizdir. Bu
+  nedenle accuracy anlamlı bir metrik değildir. Bu projede PR-AUC ve sabit bir
+  precision değerinde recall kullanılmıştır.
+
+## Sütun grupları
+
+| Grup | Sütunlar | Anlamı |
+|---|---|---|
+| Tanımlayıcı | `TransactionID` | İki tabloyu birleştirmek için anahtar |
+| Zaman | `TransactionDT` | Gizli bir başlangıç noktasından itibaren geçen saniye (gerçek tarih değildir). Yaklaşık 6 aylık bir dönemi kapsar |
+| Tutar | `TransactionAmt` | İşlem tutarı (USD) |
+| Ürün | `ProductCD` | İşlemin ürün kodu |
+| Kart | `card1` - `card6` | Kart özellikleri (kart tipi, banka, ağ vb.). Maskelenmiştir |
+| Adres | `addr1`, `addr2`, `dist1`, `dist2` | Fatura adresi ve mesafe ile ilgili alanlar |
+| E-posta | `P_emaildomain`, `R_emaildomain` | Alıcı (purchaser) ve gönderilen (recipient) e-posta alan adları |
+| Sayım | `C1` - `C14` | Sayım değerleri (örneğin bir karta bağlı adres sayısı). Tam anlamı maskelenmiştir |
+| Zaman farkı | `D1` - `D15` | Zaman farkları (örneğin önceki işlemden bu yana geçen gün). Maskelenmiştir |
+| Eşleşme bayrakları | `M1` - `M9` | Eşleşme göstergeleri (örneğin karttaki isim ile adres uyumu). Değerler T/F |
+| Vesta özellikleri | `V1` - `V339` | Sağlayıcının türettiği özellikler (sıralama, sayım, varlık ilişkileri) |
+| Kimlik | `id_01` - `id_38`, `DeviceType`, `DeviceInfo` | Ağ, tarayıcı ve cihaz bilgileri (identity tablosu) |
+
+Kategorik sütunlar: `ProductCD`, `card1`-`card6`, `addr1`, `addr2`, `P_emaildomain`,
+`R_emaildomain`, `M1`-`M9`, `DeviceType`, `DeviceInfo`, `id_12`-`id_38`.
+
+## Verinin bilinen özellikleri
+
+- **Anonimleştirilmiş özellikler:** Sütunların çoğunun anlamı maskelenmiştir; analiz,
+  iş tanımlarına değil örüntülere ve ilişkilere dayanır.
+- **Çok sayıda eksik değer:** Eksiklik çoğu zaman bilgi taşır (örneğin kimlik
+  kaydının hiç olmaması fraud ile ilişkili olabilir). Bu yüzden herhangi bir doldurma
+  (imputation) yapılmadan önce eksiklik örüntüleri incelenir.
+- **Zamana bağımlılık:** Fraud örüntüleri zamanla değişir. Rastgele bölme gelecekten
+  bilgi sızdırır (leakage), bu nedenle `TransactionDT` üzerinden zamana dayalı bölme
+  kullanılır.
+
+## Veriyi indirme
+
+1. Bir Kaggle hesabı açın ve [veri sayfasındaki](https://www.kaggle.com/c/ieee-fraud-detection/data)
+   yarışma kurallarını kabul edin.
+2. `train_transaction.csv` ve `train_identity.csv` dosyalarını indirin.
+3. İki dosyayı bu klasöre (`data/`) koyun.
+
+## Yükleme örneği
+
+```python
+import pandas as pd
+
+trans = pd.read_csv("data/train_transaction.csv")
+ident = pd.read_csv("data/train_identity.csv")
+
+# Left join: her işlem korunur, kimlik bilgisi varsa eklenir
+df = trans.merge(ident, on="TransactionID", how="left")
+```
